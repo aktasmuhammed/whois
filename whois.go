@@ -219,7 +219,7 @@ func (c *Client) rawQueryWithTimeout(domain, server, port string, timeout time.D
 	case result := <-resultCh:
 		return result.data, result.err
 	case <-ctx.Done():
-		return "", fmt.Errorf("whois: referral query timed out after %s", timeout)
+		return "", nil
 	}
 }
 
