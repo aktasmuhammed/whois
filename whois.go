@@ -20,6 +20,7 @@
 package whois
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -29,6 +30,8 @@ import (
 
 	"golang.org/x/net/proxy"
 )
+
+const referralQueryTimeout = 5 * time.Second
 
 const (
 	// defaultWhoisServer is iana whois server
@@ -165,12 +168,35 @@ func (c *Client) Whois(domain string, servers ...string) (result string, err err
 		return
 	}
 
-	data, err := c.rawQuery(domain, refServer, refPort)
+	data, err := c.rawQueryWithTimeout(domain, refServer, refPort, referralQueryTimeout)
 	if err == nil {
 		result += data
 	}
 
 	return
+}
+
+func (c *Client) rawQueryWithTimeout(domain, server, port string, timeout time.Duration) (string, error) {
+	type queryResult struct {
+		data string
+		err  error
+	}
+
+	resultCh := make(chan queryResult, 1)
+	go func() {
+		data, err := c.rawQuery(domain, server, port)
+		resultCh <- queryResult{data: data, err: err}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	select {
+	case result := <-resultCh:
+		return result.data, result.err
+	case <-ctx.Done():
+		return "", fmt.Errorf("whois: referral query timed out after %s", timeout)
+	}
 }
 
 // rawQuery do raw query to the server
