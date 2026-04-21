@@ -174,7 +174,7 @@ func (c *Client) Whois(domain string, servers ...string) (result string, err err
 		}
 	}
 
-	result, err = c.rawQuery(domain, server, port)
+	result, err = c.rawQueryWithTimeout(domain, server, port, referralQueryTimeout*3)
 	if err != nil {
 		return
 	}
